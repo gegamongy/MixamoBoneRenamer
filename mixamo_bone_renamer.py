@@ -117,34 +117,37 @@ custom_bone_names = {
 }
 
 # Function to rename bones to Mixamo names
-def rename_bones_to_mixamo():
+def rename_bones_to_mixamo(self, context):
     armature = bpy.context.object
-    if armature.type != 'ARMATURE':
-        print("Selected object is not an armature")
-        return
+    if armature is None or armature.type != 'ARMATURE':
+        self.report({'WARNING'}, "Selected object is not an armature")
+        return {'CANCELLED'}
     
     for bone in armature.data.bones:
+        
         if bone.name in custom_bone_names.values():
+            
             bone.name = mixamo_bone_names[bone.name]
-    print("Bones renamed to Mixamo names")
+    self.report({'INFO'}, "Bones renamed to Mixamo names")
+    return {'FINISHED'}
 
 # Function to rename bones to custom names
-def rename_bones_to_custom():
+def rename_bones_to_custom(self, context):
     armature = bpy.context.object
-    if armature.type != 'ARMATURE':
-        print("Selected object is not an armature")
-        return
+    if armature is None or armature.type != 'ARMATURE':
+        self.report({'WARNING'}, "Selected object is not an armature")
+        return {'CANCELLED'}
+        
     
     print('Checking armature for custom bones...')
     for bone in armature.data.bones:
         
         if bone.name in mixamo_bone_names.values():
-            print("found a bone with a mixamo name: ", bone.name)
+           
             
             bone.name = custom_bone_names[bone.name]
-        else:
-            print("Bone not in mixamo bone names")
-    print("Bones renamed to custom names")
+    self.report({'INFO'}, "Bones renamed to custom names")
+    return {'FINISHED'}   
 
 
 
@@ -171,7 +174,7 @@ class OBJECT_OT_RenameBonesToMixamo(bpy.types.Operator):
     bl_idname = "object.rename_bones_to_mixamo"
     
     def execute(self, context):
-        rename_bones_to_mixamo()
+        rename_bones_to_mixamo(self, context)
         return {'FINISHED'}
 
 # Operator for renaming to Custom
@@ -180,7 +183,7 @@ class OBJECT_OT_RenameBonesToCustom(bpy.types.Operator):
     bl_idname = "object.rename_bones_to_custom"
     
     def execute(self, context):
-        rename_bones_to_custom()
+        rename_bones_to_custom(self, context)
         return {'FINISHED'}
 
 # Register the panel and operators
