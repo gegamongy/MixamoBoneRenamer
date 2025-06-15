@@ -1,6 +1,6 @@
 import bpy
 
-# Dictionary to map default bone names to Mixamo bone names
+# Default Mixamo bone name dictionary
 mixamo_bone_names = {
     "Pelvis": "mixamorig:Hips",
     "Spine.Lower": "mixamorig:Spine",
@@ -52,106 +52,93 @@ mixamo_bone_names = {
     "Pinky1.R": "mixamorig:RightHandPinky1",
     "Pinky2.R": "mixamorig:RightHandPinky2",
     "Pinky3.R": "mixamorig:RightHandPinky3",
-    
     "Toe.L": "mixamorig:RightToeBase",
     "Toe.R": "mixamorig:LeftToeBase",
-    # Add more bone mappings if necessary
 }
 
-# Dictionary to map default bone names to custom bone names
-custom_bone_names = {
-    "mixamorig:Hips": "Pelvis",
-    "mixamorig:Spine": "Spine.Lower",
-    "mixamorig:Spine1": "Spine.Middle",
-    "mixamorig:Spine2": "Spine.Upper",
-    "mixamorig:Neck": "Neck",
-    "mixamorig:Head": "Head",
-    "mixamorig:LeftShoulder": "Shoulder.L",
-    "mixamorig:LeftArm": "UpperArm.L",
-    "mixamorig:LeftForeArm": "Forearm.L",
-    "mixamorig:LeftHand": "Hand.L",
-    "mixamorig:RightShoulder": "Shoulder.R",
-    "mixamorig:RightArm": "UpperArm.R",
-    "mixamorig:RightForeArm": "Forearm.R",
-    "mixamorig:RightHand": "Hand.R",
-    "mixamorig:LeftUpLeg": "Thigh.L",
-    "mixamorig:LeftLeg": "Shin.L",
-    "mixamorig:LeftFoot": "Foot.L",
-    "mixamorig:RightUpLeg": "Thigh.R",
-    "mixamorig:RightLeg": "Shin.R",
-    "mixamorig:RightFoot": "Foot.R",
-    "mixamorig:LeftHandThumb1": "Thumb1.L",
-    "mixamorig:LeftHandThumb2": "Thumb2.L",
-    "mixamorig:LeftHandThumb3": "Thumb3.L",
-    "mixamorig:LeftHandIndex1": "Index1.L",
-    "mixamorig:LeftHandIndex2": "Index2.L",
-    "mixamorig:LeftHandIndex3": "Index3.L",
-    "mixamorig:LeftHandMiddle1": "Middle1.L",
-    "mixamorig:LeftHandMiddle2": "Middle2.L",
-    "mixamorig:LeftHandMiddle3": "Middle3.L",
-    "mixamorig:LeftHandRing1": "Ring1.L",
-    "mixamorig:LeftHandRing2": "Ring2.L",
-    "mixamorig:LeftHandRing3": "Ring3.L",
-    "mixamorig:LeftHandPinky1": "Pinky1.L",
-    "mixamorig:LeftHandPinky2": "Pinky2.L",
-    "mixamorig:LeftHandPinky3": "Pinky3.L",
-    "mixamorig:RightHandThumb1": "Thumb1.R",
-    "mixamorig:RightHandThumb2": "Thumb2.R",
-    "mixamorig:RightHandThumb3": "Thumb3.R",
-    "mixamorig:RightHandIndex1": "Index1.R",
-    "mixamorig:RightHandIndex2": "Index2.R",
-    "mixamorig:RightHandIndex3": "Index3.R",
-    "mixamorig:RightHandMiddle1": "Middle1.R",
-    "mixamorig:RightHandMiddle2": "Middle2.R",
-    "mixamorig:RightHandMiddle3": "Middle3.R",
-    "mixamorig:RightHandRing1": "Ring1.R",
-    "mixamorig:RightHandRing2": "Ring2.R",
-    "mixamorig:RightHandRing3": "Ring3.R",
-    "mixamorig:RightHandPinky1": "Pinky1.R",
-    "mixamorig:RightHandPinky2": "Pinky2.R",
-    "mixamorig:RightHandPinky3": "Pinky3.R",
-    
-    "mixamorig:RightToeBase": "Toe.R",
-    "mixamorig:LeftToeBase": "Toe.L",
-    # Add more bone mappings if necessary
-}
+# Reverse lookup dictionary
+custom_bone_names = {v: k for k, v in mixamo_bone_names.items()}
 
-# Function to rename bones to Mixamo names
+
+# --------- Editable Custom Map Data ---------
+class BoneMappingItem(bpy.types.PropertyGroup):
+    original: bpy.props.StringProperty(name="Original")
+    target: bpy.props.StringProperty(name="Target")
+
+class OBJECT_UL_BoneMappingList(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        row = layout.row(align=True)
+        row.prop(item, "original", text="", emboss=False)
+        row.prop(item, "target", text="", emboss=False)
+
+class BONE_MAPPING_OT_Add(bpy.types.Operator):
+    bl_idname = "bone_mapping.add"
+    bl_label = "Add Bone Mapping"
+
+    def execute(self, context):
+        context.scene.bone_mappings.add()
+        return {'FINISHED'}
+
+class BONE_MAPPING_OT_Remove(bpy.types.Operator):
+    bl_idname = "bone_mapping.remove"
+    bl_label = "Remove Bone Mapping"
+
+    def execute(self, context):
+        idx = context.scene.bone_mappings_index
+        mappings = context.scene.bone_mappings
+        if mappings and 0 <= idx < len(mappings):
+            mappings.remove(idx)
+            context.scene.bone_mappings_index = min(max(0, idx - 1), len(mappings) - 1)
+        return {'FINISHED'}
+
+class OBJECT_OT_RenameBonesUsingMap(bpy.types.Operator):
+    bl_label = "Rename Bones Using Map"
+    bl_idname = "object.rename_bones_custom_map"
+
+    def execute(self, context):
+        armature = context.object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'WARNING'}, "Select an armature")
+            return {'CANCELLED'}
+
+        mapping = {item.original: item.target for item in context.scene.bone_mappings}
+        renamed = 0
+        for bone in armature.data.bones:
+            if bone.name in mapping:
+                bone.name = mapping[bone.name]
+                renamed += 1
+
+        self.report({'INFO'}, f"Renamed {renamed} bones using custom map")
+        return {'FINISHED'}
+
+
+# --------- Original Mixamo Functions ---------
 def rename_bones_to_mixamo(self, context):
-    armature = bpy.context.object
-    if armature is None or armature.type != 'ARMATURE':
+    armature = context.object
+    if not armature or armature.type != 'ARMATURE':
         self.report({'WARNING'}, "Selected object is not an armature")
         return {'CANCELLED'}
-    
+
     for bone in armature.data.bones:
-        
-        if bone.name in custom_bone_names.values():
-            
+        if bone.name in mixamo_bone_names:
             bone.name = mixamo_bone_names[bone.name]
     self.report({'INFO'}, "Bones renamed to Mixamo names")
     return {'FINISHED'}
 
-# Function to rename bones to custom names
 def rename_bones_to_custom(self, context):
-    armature = bpy.context.object
-    if armature is None or armature.type != 'ARMATURE':
+    armature = context.object
+    if not armature or armature.type != 'ARMATURE':
         self.report({'WARNING'}, "Selected object is not an armature")
         return {'CANCELLED'}
-        
-    
-    print('Checking armature for custom bones...')
+
     for bone in armature.data.bones:
-        
-        if bone.name in mixamo_bone_names.values():
-           
-            
+        if bone.name in custom_bone_names:
             bone.name = custom_bone_names[bone.name]
     self.report({'INFO'}, "Bones renamed to custom names")
-    return {'FINISHED'}   
+    return {'FINISHED'}
 
 
-
- # UI Panel
+# --------- Panel UI ---------
 class OBJECT_PT_BoneRenamerPanel(bpy.types.Panel):
     bl_label = "Bone Renamer"
     bl_idname = "OBJECT_PT_bone_renamer_panel"
@@ -161,45 +148,105 @@ class OBJECT_PT_BoneRenamerPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        
-        row = layout.row()
-        row.operator("object.rename_bones_to_mixamo", text="Rename to Mixamo")
-        
-        row = layout.row()
-        row.operator("object.rename_bones_to_custom", text="Rename to Custom")
+        scene = context.scene
 
-# Operator for renaming to Mixamo
+         # Safely preload defaults once
+        if not scene.bone_mappings:
+            for original, target in mixamo_bone_names.items():
+                item = scene.bone_mappings.add()
+                item.original = original
+                item.target = target
+
+        layout.operator("object.rename_bones_to_mixamo", text="Rename Default Custom Names to Mixamo")
+        layout.operator("object.rename_bones_to_custom", text="Rename to Default Custom")
+
+        layout.separator()
+        layout.label(text="Custom Bone Mappings:")
+        row = layout.row()
+        row.template_list("OBJECT_UL_BoneMappingList", "", scene, "bone_mappings", scene, "bone_mappings_index")
+
+        row = layout.row(align=True)
+        row.operator("bone_mapping.add", icon="ADD", text="")
+        row.operator("bone_mapping.remove", icon="REMOVE", text="")
+
+        layout.operator("object.rename_bones_custom_map", text="Rename to Mixamo Using Map")
+        layout.operator("object.rename_bones_custom_reverse", text="Rename to Custom Using Map")
+
+
+# --------- Operator Definitions ---------
 class OBJECT_OT_RenameBonesToMixamo(bpy.types.Operator):
     bl_label = "Rename Bones to Mixamo"
     bl_idname = "object.rename_bones_to_mixamo"
-    
-    def execute(self, context):
-        rename_bones_to_mixamo(self, context)
-        return {'FINISHED'}
 
-# Operator for renaming to Custom
+    def execute(self, context):
+        return rename_bones_to_mixamo(self, context)
+
 class OBJECT_OT_RenameBonesToCustom(bpy.types.Operator):
     bl_label = "Rename Bones to Custom"
     bl_idname = "object.rename_bones_to_custom"
-    
+
     def execute(self, context):
-        rename_bones_to_custom(self, context)
+        return rename_bones_to_custom(self, context)
+    
+class OBJECT_OT_RenameBonesUsingReverseMap(bpy.types.Operator):
+    bl_label = "Rename Using Reverse Map"
+    bl_idname = "object.rename_bones_custom_reverse"
+
+    def execute(self, context):
+        armature = context.object
+        if not armature or armature.type != 'ARMATURE':
+            self.report({'WARNING'}, "Select an armature")
+            return {'CANCELLED'}
+
+        # Create a reversed mapping: {target: original}
+        reverse_mapping = {item.target: item.original for item in context.scene.bone_mappings}
+        renamed = 0
+        for bone in armature.data.bones:
+            if bone.name in reverse_mapping:
+                bone.name = reverse_mapping[bone.name]
+                renamed += 1
+
+        self.report({'INFO'}, f"Renamed {renamed} bones using reverse map")
         return {'FINISHED'}
 
-# Register the panel and operators
+
+# --------- Registration ---------
+classes = (
+    BoneMappingItem,
+    OBJECT_UL_BoneMappingList,
+    BONE_MAPPING_OT_Add,
+    BONE_MAPPING_OT_Remove,
+    OBJECT_OT_RenameBonesUsingMap,
+    OBJECT_PT_BoneRenamerPanel,
+    OBJECT_OT_RenameBonesToMixamo,
+    OBJECT_OT_RenameBonesToCustom,
+    OBJECT_OT_RenameBonesUsingReverseMap,
+    
+)
+
+# def preload_default_mappings():
+#     scene = bpy.context.scene
+#     if not scene.bone_mappings:
+#         for original, target in mixamo_bone_names.items():
+#             item = scene.bone_mappings.add()
+#             item.original = original
+#             item.target = target
+
 def register():
-    bpy.utils.register_class(OBJECT_PT_BoneRenamerPanel)
-    bpy.utils.register_class(OBJECT_OT_RenameBonesToMixamo)
-    bpy.utils.register_class(OBJECT_OT_RenameBonesToCustom)
+    for cls in classes:
+        bpy.utils.register_class(cls)
+    bpy.types.Scene.bone_mappings = bpy.props.CollectionProperty(type=BoneMappingItem)
+    bpy.types.Scene.bone_mappings_index = bpy.props.IntProperty()
+    
+    
+    # # Preload only once after registering
+    # preload_default_mappings()
 
 def unregister():
-    bpy.utils.unregister_class(OBJECT_PT_BoneRenamerPanel)
-    bpy.utils.unregister_class(OBJECT_OT_RenameBonesToMixamo)
-    bpy.utils.unregister_class(OBJECT_OT_RenameBonesToCustom)
+    for cls in reversed(classes):
+        bpy.utils.unregister_class(cls)
+    del bpy.types.Scene.bone_mappings
+    del bpy.types.Scene.bone_mappings_index
 
-#if __name__ == "__main__":
-#    register()
-
-
-#rename_bones_to_mixamo()
-#rename_bones_to_custom()
+# if __name__ == "__main__":
+#     register()

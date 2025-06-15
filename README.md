@@ -1,9 +1,10 @@
 # MixamoBoneRenamer
+
 A Blender addon designed to simplify the process of renaming bones between Mixamo standard names and custom names. Ideal for users working with Mixamo animations and needing to match bone names with their custom rigs.
 
 ## Installation
 
-1. Download the addon from [GitHub](https://github.com/Gegamongy/MixamoBoneRenamer).
+1. On the Addon [GitHub](https://github.com/Gegamongy/MixamoBoneRenamer) Page, click the `Code` dropdown, and select `Download ZIP`.
 2. Open Blender and go to `Edit > Preferences > Add-ons`.
 3. Click `Install...` and select the downloaded `.zip` file.
 4. Enable the addon by checking the box next to `Mixamo Bone Renamer`.
