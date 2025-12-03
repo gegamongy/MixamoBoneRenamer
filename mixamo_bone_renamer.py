@@ -1,5 +1,15 @@
 import bpy
 
+bl_info = {
+    "name": "Mixamo Bone Renamer",
+    "author": "Your Name",
+    "version": (1, 1, 0),
+    "blender": (2, 93, 0),
+    "location": "View3D > Sidebar > Bone Tools",
+    "description": "Rename bones between Mixamo and custom naming conventions",
+    "category": "Rigging",
+}
+
 # Default Mixamo bone name dictionary
 mixamo_bone_names = {
     "Pelvis": "mixamorig:Hips",
@@ -74,16 +84,22 @@ class OBJECT_UL_BoneMappingList(bpy.types.UIList):
 class BONE_MAPPING_OT_Add(bpy.types.Operator):
     bl_idname = "bone_mapping.add"
     bl_label = "Add Bone Mapping"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        context.scene.bone_mappings.add()
-        return {'FINISHED'}
+        if context.scene:
+            context.scene.bone_mappings.add()
+            return {'FINISHED'}
+        return {'CANCELLED'}
 
 class BONE_MAPPING_OT_Remove(bpy.types.Operator):
     bl_idname = "bone_mapping.remove"
     bl_label = "Remove Bone Mapping"
+    bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
+        if not context.scene:
+            return {'CANCELLED'}
         idx = context.scene.bone_mappings_index
         mappings = context.scene.bone_mappings
         if mappings and 0 <= idx < len(mappings):
@@ -94,11 +110,20 @@ class BONE_MAPPING_OT_Remove(bpy.types.Operator):
 class OBJECT_OT_RenameBonesUsingMap(bpy.types.Operator):
     bl_label = "Rename Bones Using Map"
     bl_idname = "object.rename_bones_custom_map"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None and context.object.type == 'ARMATURE'
 
     def execute(self, context):
         armature = context.object
         if not armature or armature.type != 'ARMATURE':
             self.report({'WARNING'}, "Select an armature")
+            return {'CANCELLED'}
+
+        if not context.scene:
+            self.report({'WARNING'}, "No scene context available")
             return {'CANCELLED'}
 
         mapping = {item.original: item.target for item in context.scene.bone_mappings}
@@ -146,11 +171,21 @@ class OBJECT_PT_BoneRenamerPanel(bpy.types.Panel):
     bl_region_type = 'UI'
     bl_category = 'Bone Tools'
 
+    @classmethod
+    def poll(cls, context):
+        # Always show the panel
+        return True
+
     def draw(self, context):
         layout = self.layout
         scene = context.scene
 
-         # Safely preload defaults once
+        # Safety check for scene
+        if not scene:
+            layout.label(text="No scene context available")
+            return
+
+        # Safely preload defaults once
         if not scene.bone_mappings:
             for original, target in mixamo_bone_names.items():
                 item = scene.bone_mappings.add()
@@ -177,6 +212,11 @@ class OBJECT_PT_BoneRenamerPanel(bpy.types.Panel):
 class OBJECT_OT_RenameBonesToMixamo(bpy.types.Operator):
     bl_label = "Rename Bones to Mixamo"
     bl_idname = "object.rename_bones_to_mixamo"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None and context.object.type == 'ARMATURE'
 
     def execute(self, context):
         return rename_bones_to_mixamo(self, context)
@@ -184,6 +224,11 @@ class OBJECT_OT_RenameBonesToMixamo(bpy.types.Operator):
 class OBJECT_OT_RenameBonesToCustom(bpy.types.Operator):
     bl_label = "Rename Bones to Custom"
     bl_idname = "object.rename_bones_to_custom"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None and context.object.type == 'ARMATURE'
 
     def execute(self, context):
         return rename_bones_to_custom(self, context)
@@ -191,11 +236,20 @@ class OBJECT_OT_RenameBonesToCustom(bpy.types.Operator):
 class OBJECT_OT_RenameBonesUsingReverseMap(bpy.types.Operator):
     bl_label = "Rename Using Reverse Map"
     bl_idname = "object.rename_bones_custom_reverse"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.object is not None and context.object.type == 'ARMATURE'
 
     def execute(self, context):
         armature = context.object
         if not armature or armature.type != 'ARMATURE':
             self.report({'WARNING'}, "Select an armature")
+            return {'CANCELLED'}
+
+        if not context.scene:
+            self.report({'WARNING'}, "No scene context available")
             return {'CANCELLED'}
 
         # Create a reversed mapping: {target: original}
