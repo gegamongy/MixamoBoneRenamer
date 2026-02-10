@@ -87,8 +87,21 @@ class BONE_MAPPING_OT_Add(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
 
     def execute(self, context):
-        if context.scene:
-            context.scene.bone_mappings.add()
+        scene = context.scene
+        
+        if scene:
+            scene.bone_mappings.add()
+            # Safety check for scene
+            if not scene:
+                layout.label(text="No scene context available")
+                return
+
+            # Safely preload defaults once
+            if not scene.bone_mappings:
+                for original, target in mixamo_bone_names.items():
+                    item = scene.bone_mappings.add()
+                    item.original = original
+                    item.target = target
             return {'FINISHED'}
         return {'CANCELLED'}
 
@@ -178,19 +191,6 @@ class OBJECT_PT_BoneRenamerPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        scene = context.scene
-
-        # Safety check for scene
-        if not scene:
-            layout.label(text="No scene context available")
-            return
-
-        # Safely preload defaults once
-        if not scene.bone_mappings:
-            for original, target in mixamo_bone_names.items():
-                item = scene.bone_mappings.add()
-                item.original = original
-                item.target = target
 
         layout.operator("object.rename_bones_to_mixamo", text="Rename Default Custom Names to Mixamo")
         layout.operator("object.rename_bones_to_custom", text="Rename to Default Custom")
